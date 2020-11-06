@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">WhatsAudioRecord</string>
+    <string name="rationale_title">We need permissions</string>
+    <string name="rationale_desc">This app relies on write access to your storage and record audio from your mic.</string>
+
+</resources>
