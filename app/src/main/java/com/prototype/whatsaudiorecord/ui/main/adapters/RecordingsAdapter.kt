@@ -26,14 +26,21 @@ class RecordingsAdapter(private val viewModel: MainActivityViewModel, var mainAc
     private val TAG = "RecordingsAdapter"
 
     private var mPlayer : MediaPlayer? = null
-
-    private lateinit var mediaPlayer: MediaPlayer
-
-    var recordingsList = listOf<Recording>()
+    private var currentPlayingPosition:Int = 0
+    private var seekBarUpdater:SeekBarUpdater? = null
+    private var recordingHolder: RecordingViewHolder? = null
+    /*var recordingsList = listOf<Recording>()
 
     fun setData(items:List<Recording>){
         recordingsList = items
+    }*/
+
+    init {
+        currentPlayingPosition = -1
+        seekBarUpdater = SeekBarUpdater()
     }
+
+
 
     /*override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HomeSliderViewHolder {
 
@@ -56,19 +63,73 @@ class RecordingsAdapter(private val viewModel: MainActivityViewModel, var mainAc
             )
         )
 
+
+
+
     override fun onBindViewHolder(holder: RecordingViewHolder, position: Int) {
 
         holder.bind(viewModel, getItem(position), mainActivity)
 
+        if (position == currentPlayingPosition){
+            recordingHolder = holder
+            updatePlayingView()
+        }else{
+            updateNonPlayingView(holder)
+        }
+
         //holder.recordingItemBinding.recordingItem = recordingsList[position]
 
+    }
+
+    override fun onViewRecycled(holder: RecordingViewHolder) {
+        super.onViewRecycled(holder)
+        if (currentPlayingPosition == holder.adapterPosition)
+        {
+            recordingHolder?.let { updateNonPlayingView(it) }
+            recordingHolder = null
+        }
+    }
+
+    private fun updateNonPlayingView(holder:RecordingViewHolder) {
+        holder.recordingItemBinding.seekbar.removeCallbacks(seekBarUpdater)
+        holder.recordingItemBinding.seekbar.setEnabled(false)
+        holder.recordingItemBinding.seekbar.setProgress(0)
+        holder.recordingItemBinding.btnPlayPause.setImageResource(R.drawable.ic_play_arrow)
+    }
 
 
+    private fun updatePlayingView() {
+        recordingHolder!!.recordingItemBinding.seekbar.max = mPlayer!!.duration
+        recordingHolder!!.recordingItemBinding.seekbar.progress = mPlayer!!.currentPosition
+        recordingHolder!!.recordingItemBinding.seekbar.isEnabled = true
+        if (mPlayer!!.isPlaying()) {
+            recordingHolder!!.recordingItemBinding.seekbar.postDelayed(seekBarUpdater, 100)
+            recordingHolder!!.recordingItemBinding.btnPlayPause.setImageResource(R.drawable.ic_pause)
+        }
+        else {
+            recordingHolder!!.recordingItemBinding.seekbar.removeCallbacks(seekBarUpdater)
+            recordingHolder!!.recordingItemBinding.btnPlayPause.setImageResource(R.drawable.ic_play_arrow)
+        }
+    }
 
+    internal fun stopPlayer() {
+        if (null != mPlayer)
+        {
+            releaseMediaPlayer()
+        }
     }
 
 
 
+    inner class SeekBarUpdater:Runnable  {
+        override fun run() {
+            if (null != recordingHolder) {
+                recordingHolder!!.recordingItemBinding.seekbar.setProgress(mPlayer!!.currentPosition)
+                recordingHolder!!.recordingItemBinding.seekbar.postDelayed(this, 100)
+            }
+        }
+
+    }
     inner class RecordingViewHolder
         (val recordingItemBinding: RecordingItemBinding) : RecyclerView.ViewHolder(recordingItemBinding.root){
 
@@ -85,21 +146,40 @@ class RecordingsAdapter(private val viewModel: MainActivityViewModel, var mainAc
                 }
                 override fun onProgressChanged(seekBar:SeekBar, progress:Int, fromUser:Boolean) {
                     if (mPlayer != null && fromUser) {
-                        mPlayer!!.seekTo(progress * 1000)
+                        mPlayer!!.seekTo(progress)
                     }
                 }
             })
-            mPlayer?.setOnCompletionListener {
+            /*mPlayer?.setOnCompletionListener {
                 stopPlaying()
-            }
+            }*/
 
 
 
 
             recordingItemBinding.btnPlayPause.setOnClickListener {
 
+                if (adapterPosition == currentPlayingPosition) {
+                    if (mPlayer!!.isPlaying) {
+                        mPlayer!!.pause()
+                    } else {
+                        mPlayer!!.start()
+                    }
+                } else {
+                    currentPlayingPosition = adapterPosition
+                    if (mPlayer != null) {
+                        if (null != recordingHolder) {
+                            updateNonPlayingView(recordingHolder!!)
+                        }
+                        mPlayer!!.release()
+                    }
+                    recordingHolder = this
+                    startMediaPlayer(item?.fileName)
+                }
+                updatePlayingView()
 
-                if (mPlayer != null && mPlayer!!.isPlaying()) {
+
+                /*if (mPlayer != null && mPlayer!!.isPlaying()) {
                     
                     //mPlayer!!.pause()
                     mPlayer?.release()
@@ -115,9 +195,9 @@ class RecordingsAdapter(private val viewModel: MainActivityViewModel, var mainAc
                     }
 
 
-                } /*else if (mPlayer != null) {
+                } *//*else if (mPlayer != null) {
                     mPlayer!!.start()
-                } */else {
+                } *//*else {
                     mPlayer = MediaPlayer()
                     try {
                         mPlayer!!.setDataSource(item?.fileName)
@@ -140,7 +220,7 @@ class RecordingsAdapter(private val viewModel: MainActivityViewModel, var mainAc
                         mHandler.postDelayed(this, 10)
                     }
                 })
-
+*/
 
 
 
@@ -153,8 +233,46 @@ class RecordingsAdapter(private val viewModel: MainActivityViewModel, var mainAc
 
         }
 
+        /*override fun onClick(v: View?) {
+            if (adapterPosition == currentPlayingPosition) {
+                if (mPlayer!!.isPlaying) {
+                    mPlayer!!.pause()
+                } else {
+                    mPlayer!!.start()
+                }
+            } else {
+                currentPlayingPosition = adapterPosition
+                if (mPlayer != null) {
+                    if (null != recordingHolder) {
+                        updateNonPlayingView(recordingHolder!!)
+                    }
+                    mPlayer!!.release()
+                }
+                recordingHolder = this
+                startMediaPlayer(audioItems.get(currentPlayingPosition).audioResId)
+            }
+            updatePlayingView()
+        }*/
 
 
+    }
+
+    private fun startMediaPlayer(audioPath:String?) {
+        mPlayer = MediaPlayer()
+        mPlayer!!.setDataSource(audioPath)
+        mPlayer!!.setOnCompletionListener {
+            releaseMediaPlayer()
+        }
+        mPlayer!!.prepare()
+        mPlayer!!.start()
+    }
+    private fun releaseMediaPlayer() {
+        if (null != recordingHolder) {
+            updateNonPlayingView(recordingHolder!!)
+        }
+        mPlayer!!.release()
+        mPlayer = null
+        currentPlayingPosition = -1
     }
 
     /*inner class RecordingViewHolder(view: View): RecyclerView.ViewHolder(view){

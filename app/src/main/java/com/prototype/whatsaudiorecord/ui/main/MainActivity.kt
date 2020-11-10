@@ -66,6 +66,10 @@ class MainActivity : AppCompatActivity() {
     val viewModel: MainActivityViewModel by viewModel()
 
 
+    override fun onPause() {
+        super.onPause()
+        recordingAdapter.stopPlayer()
+    }
 
 
     @RequiresApi(Build.VERSION_CODES.M)

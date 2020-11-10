@@ -22,7 +22,7 @@
             android:layout_marginBottom="60dp"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             android:orientation="vertical"
-            app:data="@{viewModel.recordings}"
+
             tools:listitem="@layout/recording_item"/>
 
         <com.prototype.whatsaudiorecord.views.RecordView

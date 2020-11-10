@@ -25,7 +25,7 @@ fun setTimeStamp(timeText: TextView, time: String) {
     timeText.text = time
 }
 
-@BindingAdapter("data")
+/*@BindingAdapter("items")
 fun setRecyclerViewProperties(recyclerView: RecyclerView, items: List<Recording>?) {
     if (recyclerView.adapter is RecordingsAdapter) {
 
@@ -33,6 +33,6 @@ fun setRecyclerViewProperties(recyclerView: RecyclerView, items: List<Recording>
             (recyclerView.adapter as RecordingsAdapter).setData(items)
         }
     }
-}
+}*/
 
 
