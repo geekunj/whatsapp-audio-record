@@ -8,8 +8,10 @@ import com.prototype.whatsaudiorecord.models.Recording
 
 @Dao
 interface RecordDao {
+
   @Query("SELECT * FROM recordings")
   fun getAllAudioRecords(): List<Recording>
+
   @Insert
   fun insertRecording(recording:Recording)
 }

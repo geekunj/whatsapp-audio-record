@@ -1,4 +1,4 @@
-package com.prototype.whatsaudiorecord.ui
+package com.prototype.whatsaudiorecord.ui.main
 
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -20,16 +20,20 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.jakewharton.threetenabp.AndroidThreeTen
 import com.prototype.whatsaudiorecord.R
-import com.prototype.whatsaudiorecord.adapters.RecordingsAdapter
+import com.prototype.whatsaudiorecord.ui.main.adapters.RecordingsAdapter
 import com.prototype.whatsaudiorecord.data.AppDatabase
 import com.prototype.whatsaudiorecord.data.Repository
 import com.prototype.whatsaudiorecord.data.local.dao.RecordDao
+import com.prototype.whatsaudiorecord.databinding.ActivityMainBinding
 import com.prototype.whatsaudiorecord.interfaces.OnBasketAnimationEnd
 import com.prototype.whatsaudiorecord.interfaces.OnRecordClickListener
 import com.prototype.whatsaudiorecord.interfaces.OnRecordListener
 import com.prototype.whatsaudiorecord.models.Recording
 import com.prototype.whatsaudiorecord.views.RecordButton
 import com.prototype.whatsaudiorecord.views.RecordView
+import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.getViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.format.DateTimeFormatter
 import java.io.IOException
@@ -38,8 +42,8 @@ import java.io.IOException
 class MainActivity : AppCompatActivity() {
 
 
-    private val recordingDao: RecordDao? = null
-    private lateinit var mediaPlayer: MediaPlayer
+    private lateinit var recordingAdapter: RecordingsAdapter
+
     private val REQUEST_STORAGE_STATE: Int = 1001
     private val REQUEST_AUDIO_STATE: Int = 1002
     private val TAG = "MainActivity"
@@ -55,44 +59,41 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var mDb:AppDatabase
 
-    lateinit var recordingList: List<Recording>
 
-    lateinit var recyclerView:RecyclerView;
-    lateinit var factory: RecordingsViewModelFactory
-    lateinit var viewModel: MainActivityViewModel
 
-    override fun onResume() {
-        super.onResume()
-        recordingList = mDb.RecordDao().getAllAudioRecords()
+    private lateinit var binding: ActivityMainBinding
 
-    }
+    val viewModel: MainActivityViewModel by viewModel()
 
-    fun playAudio(){
-        mediaPlayer = MediaPlayer()
-        mediaPlayer.setDataSource(output)
-        mediaPlayer.prepare()
-        mediaPlayer.start()
-    }
+
+
 
     @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        val view = binding.root
+        setContentView(view)
 
-        recyclerView = findViewById(R.id.recycler_view)
+        binding.viewModel = viewModel
+
+        viewModel.setRecordings(applicationContext)
+
+
+
         AndroidThreeTen.init(this)
-        mDb = AppDatabase.getInstance(applicationContext)
+       // mDb = AppDatabase.getInstance(applicationContext)
 
-        val repository = Repository(mDb.RecordDao())
-        factory = repository?.let { RecordingsViewModelFactory(it) }!!
-        viewModel = ViewModelProviders.of(this, factory).get(MainActivityViewModel::class.java)
-        viewModel.getRecordings()
+        //val repository = Repository(mDb.RecordDao())
+
+        recordingAdapter = RecordingsAdapter(viewModel, this@MainActivity)
+        binding.recyclerView.adapter = recordingAdapter
+
+
         viewModel.recordings.observe(this@MainActivity, Observer { recordings->
-            recyclerView.also {
-                it.layoutManager = LinearLayoutManager(this@MainActivity)
-                it.setHasFixedSize(true)
-                it.adapter = RecordingsAdapter(recordings)
-            }
+
+            recordingAdapter.submitList(recordings)
+            recordingAdapter.notifyDataSetChanged()
         })
 
 
@@ -110,15 +111,14 @@ class MainActivity : AppCompatActivity() {
 
 
 
-        val recordView = findViewById(R.id.record_view) as RecordView
-        val recordButton = findViewById(R.id.record_button) as RecordButton
+
         //IMPORTANT
-        recordButton.setRecordView(recordView)
+        binding.recordButton.setRecordView(binding.recordView)
         // if you want to click the button (in case if you want to make the record button a Send Button for example..)
         // recordButton.setListenForRecord(false);
 
         //ListenForRecord must be false ,otherwise onClick will not be called
-        recordButton.setOnRecordClickListener(object : OnRecordClickListener {
+        binding.recordButton.setOnRecordClickListener(object : OnRecordClickListener {
             override fun onClick(v: View) {
                 Toast.makeText(this@MainActivity, "RECORD BUTTON CLICKED", Toast.LENGTH_SHORT)
                     .show()
@@ -126,13 +126,13 @@ class MainActivity : AppCompatActivity() {
             }
         })
         //Cancel Bounds is when the Slide To Cancel text gets before the timer . default is 8
-        recordView.setCancelBounds(8F)
-        recordView.setSmallMicColor(Color.parseColor("#c2185b"))
+        binding.recordView.setCancelBounds(8F)
+        binding.recordView.setSmallMicColor(Color.parseColor("#c2185b"))
         //prevent recording under one Second
-        recordView.setLessThanSecondAllowed(false)
-        recordView.setSlideToCancelText("Slide To Cancel")
-        recordView.setCustomSounds(R.raw.record_start, R.raw.record_finished, 0)
-        recordView.setOnRecordListener(object : OnRecordListener {
+        binding.recordView.setLessThanSecondAllowed(false)
+        binding.recordView.setSlideToCancelText("Slide To Cancel")
+        binding.recordView.setCustomSounds(R.raw.record_start, R.raw.record_finished, 0)
+        binding.recordView.setOnRecordListener(object : OnRecordListener {
             override fun onStart() {
                 Log.d("RecordView", "onStart")
                 Toast.makeText(this@MainActivity, "OnStartRecord", Toast.LENGTH_SHORT).show()
@@ -164,7 +164,7 @@ class MainActivity : AppCompatActivity() {
                 stopRecording()
             }
         })
-        recordView.setOnBasketAnimationEndListener(object : OnBasketAnimationEnd {
+        binding.recordView.setOnBasketAnimationEndListener(object : OnBasketAnimationEnd {
             override fun onAnimationEnd() {
                 Log.d("RecordView", "Basket Animation Finished")
             }
@@ -194,7 +194,18 @@ class MainActivity : AppCompatActivity() {
                 mediaRecorder?.stop()
                 mediaRecorder?.release()
                 mediaRecorder = null
-                recording?.let { mDb.RecordDao().insertRecording(it) }
+                recording?.let { AppDatabase.getInstance(applicationContext).RecordDao().insertRecording(it) }
+                viewModel.setRecordings(applicationContext)
+                /*viewModel.recordings.observe(this@MainActivity, Observer { recordings->
+
+                    recordingAdapter.submitList(recordings)
+                    recordingAdapter.notifyDataSetChanged()
+
+
+
+
+                })*/
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -299,9 +310,9 @@ class MainActivity : AppCompatActivity() {
         val builder: AlertDialog.Builder = AlertDialog.Builder(this)
         builder.setTitle(title)
             .setMessage(message)
-            .setPositiveButton("Ok", { dialog, which ->
+            .setPositiveButton("Ok") { dialog, which ->
                 requestPermissions(arrayOf(permission), requestCode)
-            })
+            }
         builder.create().show()
     }
 

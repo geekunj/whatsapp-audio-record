@@ -1,15 +1,17 @@
-package com.prototype.whatsaudiorecord.ui
+package com.prototype.whatsaudiorecord.ui.main
 
-import android.app.Application
+import android.content.Context
+import android.media.MediaPlayer
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.prototype.whatsaudiorecord.data.AppDatabase
 import com.prototype.whatsaudiorecord.data.Repository
 import com.prototype.whatsaudiorecord.models.Recording
+import java.io.IOException
 
-class MainActivityViewModel(val repository: Repository):ViewModel() {
-
+class MainActivityViewModel():ViewModel() {
 
 
 
@@ -18,9 +20,14 @@ class MainActivityViewModel(val repository: Repository):ViewModel() {
         get() =_recordings
 
 
-    fun getRecordings(){
-        _recordings.value = repository.allRecordings
+    fun setRecordings(context: Context){
+        _recordings.value = AppDatabase.getInstance(context).RecordDao().getAllAudioRecords()
     }
+
+
+
+
+
 
 
 
